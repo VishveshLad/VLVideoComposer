@@ -22,6 +22,7 @@ class ViewController: UIViewController {
     var isVideoPlaying = false
     var arrTimeLineImages = [UIImage]()
     var currentIndex = 0
+    var videoAlreadyPaused = true
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -166,6 +167,19 @@ class ViewController: UIViewController {
         }
         self.isVideoPlaying = !self.isVideoPlaying
         self.btnPlayPause.isSelected = self.isVideoPlaying
+        self.videoAlreadyPaused = !self.videoAlreadyPaused
+    }
+    
+    func pauseVideo(){
+        self.isVideoPlaying = false
+        self.avPlayer.pause()
+        self.btnPlayPause.isSelected = false
+    }
+    
+    func playVideo() {
+        self.isVideoPlaying = true
+        self.avPlayer.play()
+        self.btnPlayPause.isSelected = true
     }
     
     func updateProgressBar(_ scrollWidth: CGFloat) {
@@ -179,7 +193,7 @@ class ViewController: UIViewController {
         
         let time = CMTime(seconds: seekTime, preferredTimescale: 1000000)
         let remainingTime = duration - time
-        print("seekTime: \(CMTimeGetSeconds(time))")
+//        print("seekTime: \(CMTimeGetSeconds(time))")
         
         //  update ui
         self.avPlayer.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
@@ -212,13 +226,16 @@ extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource, 
         }
     }
     
-    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        print("Scroll BeginDragging")
-//        self.HandlePlayPauseVideo()
+    func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+        print("Scroll End Dragging")
+        if self.videoAlreadyPaused == false {
+            self.playVideo()
+        }
     }
     
-    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        print("Scroll DidEndDecelerating")
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        print("Scroll BeginDragging")
+        self.pauseVideo()
     }
 }
 // MARK: CMTime Extestion
