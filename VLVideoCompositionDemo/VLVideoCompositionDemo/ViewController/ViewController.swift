@@ -98,6 +98,9 @@ class ViewController: UIViewController {
         // Initialize Player
         self.avPlayer = AVPlayer(playerItem: playerItem)
         
+        // Add Notification observer for video end
+        NotificationCenter.default.addObserver(self, selector: #selector(self.videoEnded(_:)), name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: playerItem)
+        
         // Create Player Layer for Display inside any view
         let layer = AVPlayerLayer(player: self.avPlayer)
         layer.frame = CGRect(origin: .zero, size: viewPlayer.frame.size)
@@ -135,7 +138,7 @@ class ViewController: UIViewController {
                 
                 self?.cvVideoTimeLine.layoutIfNeeded()
                 self?.cvVideoTimeLine.setContentOffset(CGPoint(x: collectionViewProcess, y: self?.cvVideoTimeLine.bounds.origin.y ?? .zero), animated: false)
-                
+                /*
                 if currentSeconds == totalSeconds {
                     self?.avPlayer.seek(to: .zero, toleranceBefore: CMTime.zero, toleranceAfter: CMTime.zero)
                     self?.progressBar.progress = 0
@@ -143,6 +146,7 @@ class ViewController: UIViewController {
                     self?.btnPlayPause.isSelected = false
                     self?.cvVideoTimeLine.setContentOffset(.zero, animated: true)
                 }
+                */
             }
         }
     }
@@ -200,6 +204,16 @@ class ViewController: UIViewController {
         
         self.lblCurrentTime.text = time.positionalTime
         self.lblRemainingTime.text = remainingTime.positionalTime
+    }
+    
+    @objc func videoEnded(_ notification: Notification) {
+        print("Video Ended")
+        self.avPlayer.seek(to: .zero, toleranceBefore: CMTime.zero, toleranceAfter: CMTime.zero)
+        self.progressBar.progress = 0
+        self.isVideoPlaying = false
+        self.btnPlayPause.isSelected = false
+        self.videoAlreadyPaused = true
+        self.cvVideoTimeLine.setContentOffset(.zero, animated: true)
     }
 }
 
