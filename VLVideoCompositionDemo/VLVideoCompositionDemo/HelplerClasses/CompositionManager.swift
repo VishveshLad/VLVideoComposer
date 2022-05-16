@@ -12,7 +12,8 @@ class CompositionManager {
     typealias compostionCompletionBlock = (_ composition: AVMutableComposition, _ videoComposition: AVMutableVideoComposition) -> Void
     static let shared = CompositionManager()
     
-    func buildComposition(url: URL, audio: URL, canvasSize: CGSize, completion:@escaping compostionCompletionBlock) -> Void {
+    // Change Audio Build Composition
+    func buildCompositionForChangeAudio(url: URL, audio: URL, canvasSize: CGSize, completion:@escaping compostionCompletionBlock) -> Void {
         
         let avAsset = AVURLAsset(url: url)
         let avAudioAsset = AVURLAsset(url: audio)
@@ -60,6 +61,135 @@ class CompositionManager {
         completion(mutableComposition, mutableVideoComposition)
     }
     
+    // Multiple Video Merge Build Composition
+    func buildCompositionForMultipleVideoMerge(arrUrls: [URL], canvasSize: CGSize, completion:@escaping compostionCompletionBlock) -> Void {
+        var nextTrackTime: CMTime = .zero
+        var finalDurationTime : CMTime = .zero
+        // Layer Instructions
+        var arrLayerInstruction = [AVMutableVideoCompositionLayerInstruction]()
+        
+        var renderSize : CGSize?
+        
+        let mutableComposition = AVMutableComposition()
+        
+        // add one by one video
+        for url in arrUrls {
+            let avAsset = AVURLAsset(url: url)
+    //        let avAudioAsset = AVURLAsset(url: audio)
+           
+            // Video Track Setup
+            var videoTrack:AVMutableCompositionTrack!
+            if avAsset.tracks(withMediaType: .video).count > 0 {
+                videoTrack = mutableComposition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+                do {
+                    try videoTrack.insertTimeRange(CMTimeRangeMake(start: .zero, duration: avAsset.duration), of: avAsset.tracks(withMediaType: .video).first!, at: nextTrackTime)
+                }
+                catch {
+                }
+            }
+            
+            // Audio Track Setup
+            var audioTrack: AVMutableCompositionTrack!
+            if avAsset.tracks(withMediaType: .audio).count > 0 {
+                audioTrack = mutableComposition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+                do {
+                    try audioTrack.insertTimeRange(CMTimeRange(start: .zero, duration: avAsset.duration), of: avAsset.tracks(withMediaType: .audio).first!, at: nextTrackTime)
+                }
+                catch {
+                }
+            }
+            
+            // set time for next track
+            nextTrackTime = avAsset.duration
+            finalDurationTime = finalDurationTime + avAsset.duration
+            
+            if renderSize == nil {
+                renderSize = videoTrack.naturalSize
+            }
+            
+            let layerInstruction = videoCompositionInstructionForTrack(track: videoTrack, asset: avAsset, videoSize: videoTrack.naturalSize, canvasSize: canvasSize, atTime: .zero)
+            arrLayerInstruction.append(layerInstruction)
+        }
+        
+        // Video Composition Instruction
+        let mutableVideoCompositionInstruction = AVMutableVideoCompositionInstruction()
+        mutableVideoCompositionInstruction.timeRange = CMTimeRangeMake(start: CMTime.zero, duration: finalDurationTime)
+        mutableVideoCompositionInstruction.layerInstructions = arrLayerInstruction
+        
+        // Build Final Composition
+        let mutableVideoComposition = AVMutableVideoComposition()
+        mutableVideoComposition.instructions = [mutableVideoCompositionInstruction]
+        mutableVideoComposition.frameDuration = CMTimeMake(value: 1, timescale: 60)
+        mutableVideoComposition.renderSize = renderSize ?? .zero //videoTrack.naturalSize
+        
+        completion(mutableComposition, mutableVideoComposition)
+    }
+    
+    // Trim video Build Composition
+    func buildCompositionForTrimVideoWithChangeAudio(url: URL, audio: URL? = nil, startTime: Double? = 0.0, durationTime: Double? = 0.0, canvasSize: CGSize, completion:@escaping compostionCompletionBlock) -> Void {
+        
+        let avAsset = AVURLAsset(url: url)
+        var start: CMTime = .zero
+        var duration: CMTime = avAsset.duration
+        
+        if let startTime = startTime, startTime < duration.seconds {
+            start = CMTime(seconds: startTime, preferredTimescale: avAsset.duration.timescale)
+        }
+        
+        if let durationTime = durationTime, durationTime <= duration.seconds {
+            duration = CMTime(seconds: durationTime, preferredTimescale: avAsset.duration.timescale)
+        }
+        
+        let mutableComposition = AVMutableComposition()
+        
+        // Video Track Setup
+        var videoTrack:AVMutableCompositionTrack!
+        if avAsset.tracks(withMediaType: .video).count > 0 {
+            videoTrack = mutableComposition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+            do {
+                try videoTrack.insertTimeRange(CMTimeRangeMake(start: start, duration: duration), of: avAsset.tracks(withMediaType: .video).first!, at: .zero)
+            }
+            catch {
+            }
+        }
+        
+        // Audio Track Setup
+        var audioTrack: AVMutableCompositionTrack!
+        if avAsset.tracks(withMediaType: .audio).count > 0 {
+            audioTrack = mutableComposition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+            do {
+                if let audioUrl = audio {
+                    let avAudioAsset = AVURLAsset(url: audioUrl)
+                    try audioTrack.insertTimeRange(CMTimeRange(start: start, duration: duration), of: avAudioAsset.tracks(withMediaType: .audio).first!, at: .zero)
+                }else {
+                    try audioTrack.insertTimeRange(CMTimeRange(start: start, duration: duration), of: avAsset.tracks(withMediaType: .audio).first!, at: .zero)
+                }
+            }
+            catch {
+            }
+        }
+        
+        // Layer Instructions
+        var arrLayerInstruction = [AVMutableVideoCompositionLayerInstruction]()
+        let layerInstruction = videoCompositionInstructionForTrack(track: videoTrack, asset: avAsset, videoSize: videoTrack.naturalSize, canvasSize: canvasSize, atTime: .zero)
+        arrLayerInstruction = [layerInstruction]
+        
+        // Video Composition Instruction
+        let mutableVideoCompositionInstruction = AVMutableVideoCompositionInstruction()
+        mutableVideoCompositionInstruction.timeRange = CMTimeRangeMake(start: CMTime.zero, duration: videoTrack.asset!.duration)
+        mutableVideoCompositionInstruction.layerInstructions = arrLayerInstruction
+        
+        // Build Final Composition
+        let mutableVideoComposition = AVMutableVideoComposition()
+        mutableVideoComposition.instructions = [mutableVideoCompositionInstruction]
+        mutableVideoComposition.frameDuration = CMTimeMake(value: 1, timescale: 60)
+        mutableVideoComposition.renderSize = videoTrack.naturalSize
+        
+        completion(mutableComposition, mutableVideoComposition)
+    }
+    
+    
+    // Video Composition Instruction For Track
     func videoCompositionInstructionForTrack(track: AVCompositionTrack, asset: AVAsset, videoSize:CGSize, canvasSize:CGSize, atTime: CMTime) -> AVMutableVideoCompositionLayerInstruction {
         let instruction = AVMutableVideoCompositionLayerInstruction(assetTrack: track)
         let assetTrack = asset.tracks(withMediaType: AVMediaType.video)[0]
@@ -95,6 +225,7 @@ class CompositionManager {
         return instruction
     }
     
+    // Manage Orientations From Transfrom
     func orientationFromTransform(transform: CGAffineTransform) -> (orientation: UIImage.Orientation, isPortrait: Bool) {
         var assetOrientation = UIImage.Orientation.up
         var isPortrait = false

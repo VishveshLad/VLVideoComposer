@@ -20,7 +20,9 @@ class ViewController: UIViewController {
     // Variables
     var avPlayer: AVPlayer!
     var isVideoPlaying = false
-    var arrTimeLineImages = [UIImage]()
+    var arrVideoUrl: [URL] = []
+    var arrAudioUrl: [URL] = []
+    var arrTimeLineImages: [UIImage] = []
     var currentIndex = 0
     var videoAlreadyPaused = true
     
@@ -32,13 +34,39 @@ class ViewController: UIViewController {
         guard let sampleVideoFilePath = Bundle.main.path(forResource: "big_buck_bunny", ofType: "mp4") else { return }
         
         guard let sampleAudioFilePath = Bundle.main.path(forResource: "sample_audio", ofType: "mp3") else { return }
+        
+        guard let sampleFilePexels = Bundle.main.path(forResource: "pexels-arvin-latifi-6466763", ofType: "mp4") else { return }
+        
         let urlVideo = URL(fileURLWithPath: sampleVideoFilePath)
-        // Setup video timeline
-        self.setupVideoTimeLine(url: urlVideo)
+        let urlVideoPexels = URL(fileURLWithPath: sampleFilePexels)
         let urlAudio = URL(fileURLWithPath: sampleAudioFilePath)
+        self.arrVideoUrl = [urlVideo, urlVideoPexels]
+        self.arrAudioUrl = [urlAudio]
+        // Setup video timeline
+//        self.setupVideoTimeLine(urls: self.arrVideoUrl)
+        self.setupVideoTimeLine(urls: [urlVideo])
         
         DispatchQueue.main.async {
-            CompositionManager.shared.buildComposition(url: urlVideo, audio: urlAudio, canvasSize: self.viewPlayer.frame.size) { composition, videoComposition in
+            // Change Audio
+            /*
+            CompositionManager.shared.buildCompositionForChangeAudio(url: urlVideo, audio: urlAudio, canvasSize: self.viewPlayer.frame.size) { composition, videoComposition in
+                DispatchQueue.main.async {
+                    self.createPlayer(from: composition, videoComposition: videoComposition)
+                }
+            }
+            */
+            
+            // Merge Video
+            /*
+            CompositionManager.shared.buildCompositionForMultipleVideoMerge(arrUrls: [urlVideo, urlVideoPexels], canvasSize: self.viewPlayer.frame.size) { composition, videoComposition in
+                DispatchQueue.main.async {
+                    self.createPlayer(from: composition, videoComposition: videoComposition)
+                }
+            }
+             */
+            
+            // Trim Vide With Audio Change Option
+            CompositionManager.shared.buildCompositionForTrimVideoWithChangeAudio(url: urlVideo, audio: urlAudio, startTime: 3.0, durationTime: 5.0, canvasSize: self.viewVideoTimeLine.frame.size) { composition, videoComposition in
                 DispatchQueue.main.async {
                     self.createPlayer(from: composition, videoComposition: videoComposition)
                 }
@@ -64,27 +92,28 @@ class ViewController: UIViewController {
         self.cvVideoTimeLine.reloadData()
     }
     
-    func setupVideoTimeLine(url: URL) {
-        let asset: AVAsset = AVAsset(url: url)
-        
-        let imageGenerator = AVAssetImageGenerator(asset: asset)
-        imageGenerator.appliesPreferredTrackTransform = true
-        let duration = Int(CMTimeGetSeconds(asset.duration))
-        
-        guard duration > 1 else {
-            print("Video length is less than one second.")
-            return
-        }
-        
-        for i in 0...duration - 1 {
-            do {
-                let thumbnailImage = try imageGenerator.copyCGImage(at: CMTimeMake(value: Int64(i), timescale: 1), actualTime: nil)
-                self.arrTimeLineImages.append(UIImage(cgImage: thumbnailImage))
-            } catch let error {
-                print(error)
+    func setupVideoTimeLine(urls: [URL]) {
+        for url in urls {
+            let asset: AVAsset = AVAsset(url: url)
+            
+            let imageGenerator = AVAssetImageGenerator(asset: asset)
+            imageGenerator.appliesPreferredTrackTransform = true
+            let duration = Int(CMTimeGetSeconds(asset.duration))
+            
+            guard duration > 1 else {
+                print("Video length is less than one second.")
+                return
+            }
+            
+            for i in 0...duration - 1 {
+                do {
+                    let thumbnailImage = try imageGenerator.copyCGImage(at: CMTimeMake(value: Int64(i), timescale: 1), actualTime: nil)
+                    self.arrTimeLineImages.append(UIImage(cgImage: thumbnailImage))
+                } catch let error {
+                    print(error)
+                }
             }
         }
-        
         print("Total thumbnail images : \(self.arrTimeLineImages.count)")
         self.cvVideoTimeLine.reloadData()
     }
@@ -97,6 +126,10 @@ class ViewController: UIViewController {
         
         // Initialize Player
         self.avPlayer = AVPlayer(playerItem: playerItem)
+        
+        if let avPlayerVideoURL = (self.avPlayer.currentItem?.asset as? AVURLAsset)?.url{
+            print("composition URL:- \(avPlayerVideoURL)")
+        }
         
         // Add Notification observer for video end
         NotificationCenter.default.addObserver(self, selector: #selector(self.videoEnded(_:)), name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: playerItem)
@@ -241,14 +274,14 @@ extension ViewController: UICollectionViewDelegate, UICollectionViewDataSource, 
     }
     
     func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
-        print("Scroll End Dragging")
+//        print("Scroll End Dragging")
         if self.videoAlreadyPaused == false {
             self.playVideo()
         }
     }
     
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        print("Scroll BeginDragging")
+//        print("Scroll BeginDragging")
         self.pauseVideo()
     }
 }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		33593E2728320B7B004FCFBB /* pexels-arvin-latifi-6466763.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 33593E2628320B7B004FCFBB /* pexels-arvin-latifi-6466763.mp4 */; };
 		339C6C8B282E12270044E53C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339C6C8A282E12270044E53C /* AppDelegate.swift */; };
 		339C6C8D282E12270044E53C /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339C6C8C282E12270044E53C /* SceneDelegate.swift */; };
 		339C6C8F282E12270044E53C /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339C6C8E282E12270044E53C /* ViewController.swift */; };
@@ -19,6 +20,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		33593E2628320B7B004FCFBB /* pexels-arvin-latifi-6466763.mp4 */ = {isa = PBXFileReference; lastKnownFileType = file; path = "pexels-arvin-latifi-6466763.mp4"; sourceTree = "<group>"; };
 		339C6C87282E12270044E53C /* VLVideoCompositionDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VLVideoCompositionDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		339C6C8A282E12270044E53C /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		339C6C8C282E12270044E53C /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -109,6 +111,7 @@
 		339C6CA2282E12EA0044E53C /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				33593E2628320B7B004FCFBB /* pexels-arvin-latifi-6466763.mp4 */,
 				339C6CA6282E136E0044E53C /* big_buck_bunny.mp4 */,
 				339C6CA5282E136E0044E53C /* sample_audio.mp3 */,
 				339C6C93282E12290044E53C /* Assets.xcassets */,
@@ -179,6 +182,7 @@
 				339C6CA8282E136E0044E53C /* big_buck_bunny.mp4 in Resources */,
 				339C6C94282E12290044E53C /* Assets.xcassets in Resources */,
 				339C6C92282E12270044E53C /* Main.storyboard in Resources */,
+				33593E2728320B7B004FCFBB /* pexels-arvin-latifi-6466763.mp4 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
