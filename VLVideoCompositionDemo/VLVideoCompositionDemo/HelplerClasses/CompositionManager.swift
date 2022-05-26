@@ -132,12 +132,13 @@ class CompositionManager {
         var start: CMTime = .zero
         var duration: CMTime = avAsset.duration
         
-        if let startTime = startTime, startTime < duration.seconds {
+        if let startTime = startTime, startTime < duration.seconds, startTime >= 0.0 {
             start = CMTime(seconds: startTime, preferredTimescale: avAsset.duration.timescale)
         }
         
-        if let durationTime = durationTime, durationTime <= duration.seconds {
-            duration = CMTime(seconds: durationTime, preferredTimescale: avAsset.duration.timescale)
+        if let durationTime = durationTime, durationTime <= duration.seconds, durationTime > 0.0 {
+            let durationData = min((start.seconds + durationTime),avAsset.duration.seconds) - (startTime ?? 0.0)
+            duration = CMTime(seconds: durationData, preferredTimescale: avAsset.duration.timescale)
         }
         
         let mutableComposition = AVMutableComposition()
@@ -171,7 +172,8 @@ class CompositionManager {
         
         // Layer Instructions
         var arrLayerInstruction = [AVMutableVideoCompositionLayerInstruction]()
-        let layerInstruction = videoCompositionInstructionForTrack(track: videoTrack, asset: avAsset, videoSize: videoTrack.naturalSize, canvasSize: canvasSize, atTime: .zero)
+        let layerInstruction = videoCompositionInstructionWithCanvas(videoTrack, asset: avAsset, canvasSize: canvasSize, atTime: .zero)
+//        videoCompositionInstructionForTrack(track: videoTrack, asset: avAsset, videoSize: videoTrack.naturalSize, canvasSize: canvasSize, atTime: .zero)
         arrLayerInstruction = [layerInstruction]
         
         // Video Composition Instruction
@@ -183,7 +185,32 @@ class CompositionManager {
         let mutableVideoComposition = AVMutableVideoComposition()
         mutableVideoComposition.instructions = [mutableVideoCompositionInstruction]
         mutableVideoComposition.frameDuration = CMTimeMake(value: 1, timescale: 60)
-        mutableVideoComposition.renderSize = videoTrack.naturalSize
+        
+        let assetTrack = avAsset.tracks(withMediaType: AVMediaType.video)[0]
+        
+//        let transform = assetTrack.preferredTransform
+//        let assetInfo = orientationFromTransform(transform)
+//        let naturalSize = videoTrack.naturalSize
+        
+        // Wrong Way
+//        if assetInfo.isPortrait {
+//            let widthRatio = naturalSize.height / canvasSize.height
+//            let newWidth = canvasSize.width * widthRatio
+//
+//            let hightRatio = naturalSize.width / canvasSize.width
+//            let newHight = canvasSize.height * hightRatio
+//            mutableVideoComposition.renderSize = CGSize(width: newWidth, height: newHight)
+//        }else{
+//            let widthRatio = naturalSize.width / canvasSize.width
+//            let newWidth = canvasSize.width * widthRatio
+//
+//            let hightRatio = naturalSize.height / canvasSize.height
+//            let newHight = canvasSize.height * hightRatio
+//            mutableVideoComposition.renderSize = CGSize(width: newWidth, height: newHight)
+//        }
+        
+        mutableVideoComposition.renderSize = canvasSize
+        
         
         completion(mutableComposition, mutableVideoComposition)
     }
@@ -241,5 +268,84 @@ class CompositionManager {
             assetOrientation = .down
         }
         return (assetOrientation, isPortrait)
+    }
+    
+    func videoCompositionInstructionWithCanvas(_ track: AVCompositionTrack, asset: AVAsset, canvasSize: CGSize, atTime: CMTime) -> AVMutableVideoCompositionLayerInstruction {
+        let instruction = AVMutableVideoCompositionLayerInstruction(assetTrack: track)
+        let assetTrack = asset.tracks(withMediaType: AVMediaType.video)[0]
+        
+        let transform = assetTrack.preferredTransform
+        let assetInfo = orientationFromTransform(transform)
+        
+//        instruction.setTransform(transform, at: atTime)
+//        return instruction
+        
+        var scaleToFitRatio = canvasSize.width / assetTrack.naturalSize.width
+        if assetInfo.isPortrait {
+            //MAKE NEW RENDER SIZE (Wrong Way)
+//            let y =  ((assetTrack.naturalSize.height / canvasSize.height) * canvasSize.height) / 4
+//            instruction.setTransform(transform.concatenating(CGAffineTransform(translationX: 0,y: y)), at: atTime)
+//            return instruction
+            
+            // SET CANVAS SIZE
+            scaleToFitRatio = canvasSize.height / assetTrack.naturalSize.width
+//            let scaleToFitRatioHeight = (canvasSize.height / assetTrack.naturalSize.height) * canvasSize.height
+            
+            let aspectWidth = canvasSize.width * (assetTrack.naturalSize.height / canvasSize.height)
+            let videoWidth = (canvasSize.height * abs(assetTrack.naturalSize.width)) / abs(assetTrack.naturalSize.height)
+            
+            let x : CGFloat = canvasSize.width / 4 //(canvasSize.width - (canvasSize.width/2.3))  //(canvasSize.width - videoWidth) / 2
+            
+            
+            //(canvasSize.height - scaleToFitRatioHeight) / 2
+            let scaleFactor = CGAffineTransform(scaleX: scaleToFitRatio, y: scaleToFitRatio).concatenating(CGAffineTransform(translationX: 0,y: 0))
+//            let scaleFactor = CGAffineTransform(scaleX: scaleToFitRatio, y: scaleToFitRatio) // OLDER CODE
+            instruction.setTransform(assetTrack.preferredTransform.concatenating(scaleFactor),at: atTime)
+        } else {
+            // MAKE NEW RANDER SIZE (Wrong Way)
+//            instruction.setTransform(transform.concatenating(CGAffineTransform(translationX: 0.01,y: 0)), at: atTime)
+//            return instruction
+            
+            // SET CANVAS SIZE
+            let scaleFactor = CGAffineTransform(scaleX: scaleToFitRatio,y: scaleToFitRatio)
+//            let scaleToFitRatioHeight = (((assetTrack.naturalSize.height) - (canvasSize.height)) / 2)
+            let y = canvasSize.height / 4 //((canvasSize.height / 2) - scaleToFitRatioHeight) - 20
+            var concat = assetTrack.preferredTransform.concatenating(scaleFactor).concatenating(CGAffineTransform(translationX: 0,y: 0))
+//            var concat = assetTrack.preferredTransform.concatenating(scaleFactor).concatenating(CGAffineTransform(translationX: 0,y: canvasSize.width / 2)) // OLDER CODE
+            if assetInfo.orientation == .down {
+                let fixUpsideDown = CGAffineTransform(rotationAngle: CGFloat(Double.pi))
+                let windowBounds = canvasSize //UIScreen.main.bounds
+                let yFix = assetTrack.naturalSize.height + windowBounds.height
+                let centerFix = CGAffineTransform(translationX: assetTrack.naturalSize.width,y: yFix)
+                concat = fixUpsideDown.concatenating(centerFix).concatenating(scaleFactor)
+            }
+            instruction.setTransform(concat, at: atTime)
+        }
+        
+        return instruction
+    }
+    
+    func orientationFromTransform(
+      _ transform: CGAffineTransform
+    ) -> (orientation: UIImage.Orientation, isPortrait: Bool) {
+      var assetOrientation = UIImage.Orientation.up
+      var isPortrait = false
+      let tfA = transform.a
+      let tfB = transform.b
+      let tfC = transform.c
+      let tfD = transform.d
+
+      if tfA == 0 && tfB == 1.0 && tfC == -1.0 && tfD == 0 {
+        assetOrientation = .right
+        isPortrait = true
+      } else if tfA == 0 && tfB == -1.0 && tfC == 1.0 && tfD == 0 {
+        assetOrientation = .left
+        isPortrait = true
+      } else if tfA == 1.0 && tfB == 0 && tfC == 0 && tfD == 1.0 {
+        assetOrientation = .up
+      } else if tfA == -1.0 && tfB == 0 && tfC == 0 && tfD == -1.0 {
+        assetOrientation = .down
+      }
+      return (assetOrientation, isPortrait)
     }
 }
